@@ -53,13 +53,13 @@ let package = Package(
     ),
     
     .target(
-        name: "_CShims",
+        name: "_FoundationEssentialsCShims",
         path: "swift-foundation/Sources/_CShims"
     ),
     
     .target(
         name: "_FoundationEssentialsForSwiftSyntax",
-        dependencies: ["_CShims"],
+        dependencies: ["_FoundationEssentialsCShims"],
         path: "swift-foundation/Sources/FoundationEssentials",
         sources: [
             "JSON",
