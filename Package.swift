@@ -28,6 +28,9 @@ let package = Package(
     .library(name: "SwiftSyntaxMacroExpansion", targets: ["SwiftSyntaxMacroExpansion"]),
     .library(name: "SwiftSyntaxMacrosTestSupport", targets: ["SwiftSyntaxMacrosTestSupport"]),
   ],
+  dependencies: [
+    .package(url: "git@github.com:apple/swift-system.git", from: "1.0.0")
+  ],
   targets: [
     // MARK: - Internal helper targets
 
@@ -47,6 +50,43 @@ let package = Package(
     .testTarget(
       name: "SwiftSyntaxTestSupportTest",
       dependencies: ["_SwiftSyntaxTestSupport", "SwiftParser"]
+    ),
+    
+    .target(
+        name: "_CShims",
+        path: "swift-foundation/Sources/_CShims"
+    ),
+    
+    .target(
+        name: "_FoundationEssentialsForSwiftSyntax",
+        dependencies: ["_CShims"],
+        path: "swift-foundation/Sources/FoundationEssentials",
+        sources: [
+            "JSON",
+            "Data/Data.swift",
+            "Data/Data+Base64.swift",
+            "Data/ContiguousBytes.swift",
+            "Data/DataProtocol.swift",
+            "String/BidirectionalCollection.swift",
+            "String/StringBlocks.swift",
+            "String/BuiltInUnicodeScalarSet.swift",
+            "String/String+Essentials.swift",
+            "String/StringProtocol+Essentials.swift",
+            "String/String+Encoding.swift",
+            "String/String+EndianAdaptorSequence.swift",
+            "String/String+Comparison.swift",
+            "String/UnicodeScalar.swift",
+            "LockedState.swift",
+            "Platform.swift",
+            "Date.swift",
+            "ComparisonResult.swift",
+            "CodableUtilities.swift",
+            "OutputBuffer.swift",
+            "AttributedString/Collection Stdlib Defaults.swift"
+        ],
+        swiftSettings: [
+            .define("BUILDING_FOR_SWIFT_SYNTAX"),
+            .unsafeFlags(["-package-name", "_FEFSS"])]
     ),
 
     // MARK: - Library targets
@@ -74,7 +114,12 @@ let package = Package(
 
     .target(
       name: "SwiftCompilerPlugin",
-      dependencies: ["SwiftCompilerPluginMessageHandling", "SwiftSyntaxMacros"],
+      dependencies: [
+        "SwiftCompilerPluginMessageHandling",
+        "SwiftSyntaxMacros",
+        "_FoundationEssentialsForSwiftSyntax",
+        .product(name: "SystemPackage", package: "swift-system")
+      ],
       exclude: ["CMakeLists.txt"]
     ),
 

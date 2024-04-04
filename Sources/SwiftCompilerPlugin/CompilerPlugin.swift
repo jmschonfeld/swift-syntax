@@ -14,11 +14,13 @@
 
 #if swift(>=6.0)
 public import SwiftSyntaxMacros
-private import Foundation
+private import _FoundationEssentialsForSwiftSyntax
+private import SystemPackage
 private import SwiftCompilerPluginMessageHandling
 #else
 import SwiftSyntaxMacros
-import Foundation
+import _FoundationEssentialsForSwiftSyntax
+import SystemPackage
 import SwiftCompilerPluginMessageHandling
 #endif
 
@@ -28,6 +30,14 @@ private import ucrt
 #else
 import ucrt
 #endif
+#endif
+
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#elseif os(Windows)
+import CRT
 #endif
 
 //
@@ -72,6 +82,19 @@ public protocol CompilerPlugin {
   var providingMacros: [Macro.Type] { get }
 }
 
+private func _getProcessName() -> String {
+    guard let processPath = CommandLine.arguments.first else {
+        return ""
+    }
+
+    if let lastSlash = processPath.lastIndex(of: "/") {
+        return String(processPath[
+            processPath.index(after: lastSlash) ..< processPath.endIndex])
+    }
+
+    return processPath
+}
+
 extension CompilerPlugin {
   @_spi(Testing)
   public func resolveMacro(moduleName: String, typeName: String) throws -> Macro.Type {
@@ -86,7 +109,7 @@ extension CompilerPlugin {
       }
     }
 
-    let pluginPath = CommandLine.arguments.first ?? Bundle.main.executablePath ?? ProcessInfo.processInfo.processName
+    let pluginPath = CommandLine.arguments.first ?? /*Bundle.main.executablePath ??*/ _getProcessName()
     throw CompilerPluginError(
       message:
         "macro implementation type '\(moduleName).\(typeName)' could not be found in executable plugin '\(pluginPath)'"
@@ -149,8 +172,8 @@ extension CompilerPlugin {
 
     // Open a message channel for communicating with the plugin host.
     let connection = PluginHostConnection(
-      inputStream: FileHandle(fileDescriptor: inputFD),
-      outputStream: FileHandle(fileDescriptor: outputFD)
+      inputStream:  FileDescriptor(rawValue: inputFD),
+      outputStream: FileDescriptor(rawValue: outputFD)
     )
 
     // Handle messages from the host until the input stream is closed,
@@ -180,8 +203,8 @@ extension CompilerPlugin {
 }
 
 internal struct PluginHostConnection: MessageConnection {
-  fileprivate let inputStream: FileHandle
-  fileprivate let outputStream: FileHandle
+  fileprivate let inputStream: FileDescriptor
+  fileprivate let outputStream: FileDescriptor
 
   func sendMessage<TX: Encodable>(_ message: TX) throws {
     // Encode the message as JSON.
@@ -193,8 +216,8 @@ internal struct PluginHostConnection: MessageConnection {
     precondition(header.count == 8)
 
     // Write the header and payload.
-    try outputStream._write(contentsOf: header)
-    try outputStream._write(contentsOf: payload)
+    try outputStream.writeAll(header)
+    try outputStream.writeAll(payload)
   }
 
   func waitForNextMessage<RX: Decodable>(_ ty: RX.Type) throws -> RX? {
@@ -236,22 +259,14 @@ internal struct PluginHostConnection: MessageConnection {
   }
 }
 
-private extension FileHandle {
-  func _write(contentsOf data: Data) throws {
-    if #available(macOS 10.15.4, iOS 13.4, watchOS 6.2, tvOS 13.4, *) {
-      return try self.write(contentsOf: data)
-    } else {
-      return self.write(data)
+private extension FileDescriptor {
+    func _read(upToCount count: Int) throws -> Data? {
+        var result = Data(capacity: count)
+        let readBytes = try result.withUnsafeMutableBytes {
+            try self.read(into: UnsafeMutableRawBufferPointer($0))
+        }
+        return result[..<readBytes]
     }
-  }
-
-  func _read(upToCount count: Int) throws -> Data? {
-    if #available(macOS 10.15.4, iOS 13.4, watchOS 6.2, tvOS 13.4, *) {
-      return try self.read(upToCount: count)
-    } else {
-      return self.readData(ofLength: 8)
-    }
-  }
 }
 
 struct CompilerPluginError: Error, CustomStringConvertible {

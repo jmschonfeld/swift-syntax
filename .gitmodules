@@ -1,0 +1,4 @@
+[submodule "swift-foundation"]
+	path = swift-foundation
+	url = git@github.com:jmschonfeld/swift-foundation.git
+	branch = for-swift-syntax
