@@ -54,7 +54,10 @@ let package = Package(
     
     .target(
         name: "_FoundationEssentialsCShims",
-        path: "swift-foundation/Sources/_CShims"
+        path: "swift-foundation/Sources/_CShims",
+        sources: [
+            "string_shims.c"
+        ]
     ),
     
     .target(
