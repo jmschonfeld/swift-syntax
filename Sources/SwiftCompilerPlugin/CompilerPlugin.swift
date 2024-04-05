@@ -261,10 +261,11 @@ internal struct PluginHostConnection: MessageConnection {
 
 private extension FileDescriptor {
     func _read(upToCount count: Int) throws -> Data? {
-        var result = Data(capacity: count)
+        var result = Data(count: count)
         let readBytes = try result.withUnsafeMutableBytes {
             try self.read(into: UnsafeMutableRawBufferPointer($0))
         }
+        guard readBytes > 0 else { return nil }
         return result[..<readBytes]
     }
 }
